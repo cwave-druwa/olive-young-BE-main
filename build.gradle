@@ -1,0 +1,68 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.3.2'
+	id 'io.spring.dependency-management' version '1.1.6'
+	id "org.sonarqube" version "4.0.0.2929"
+	id 'jacoco'
+}
+
+sonarqube {
+	properties {
+		property "sonar.projectKey", "hys_olive-young-server_AZGRPGrL-w2BHcLnXznG"
+		property "sonar.qualitygate.wait", true
+		property "sonar.java.binaries", layout.buildDirectory.dir("classes/java/main").get().asFile.absolutePath
+	}
+}
+
+jacoco {
+	toolVersion = "0.8.8"  // JaCoCo의 최신 버전
+}
+
+test {
+	useJUnitPlatform()
+	finalizedBy jacocoTestReport  // 테스트가 끝난 후 JaCoCo 리포트 생성
+}
+
+jacocoTestReport {
+	dependsOn test  // 테스트 후 리포트 생성
+	reports {
+		xml.required.set(true)  // SonarQube가 인식할 수 있도록 XML 리포트 생성
+		html.outputLocation.set(layout.buildDirectory.dir("jacocoHtml"))  // HTML 리포트를 생성할 위치를 설정
+	}
+}
+
+group = 'olive'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	runtimeOnly 'com.h2database:h2'
+	implementation 'mysql:mysql-connector-java:8.0.32'
+	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: olive-young-server
+  namespace: spring-server
+  labels:
+    app: olive-young-server
+spec:
+  replicas: 3  # 초기 파드 수
+  selector:
+    matchLabels:
+      app: olive-young-server
+  template:
+    metadata:
+      labels:
+        app: olive-young-server
+    spec:
+      containers:
+        - name: olive-young-server
+          image: 381492005553.dkr.ecr.ap-northeast-2.amazonaws.com/olive-young-server:latest
+          resources: # 리소스 요청 및 제한 설정
+            requests:
+              cpu: "500m"  # 0.5 CPU를 요청
+              memory: "512Mi"  # 512Mi 메모리 요청
+            limits:
+              cpu: "10240m"  # 최대 1 CPU 사용
+              memory: "1024Mi"  # 최대 1Gi 메모리 사용
+          ports:
+            - containerPort: 8080
+---
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: olive-young-server-hpa
+  namespace: spring-server
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: olive-young-server
+  minReplicas: 3  # 최소 파드 수
+  maxReplicas: 5  # 최대 파드 수
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80 #CPU %
+

@@ -1,0 +1,86 @@
+stages:
+  - build
+  - sonarqube-check
+  - dockerize_korea
+  - dockerize_dr
+  - push_to_ecr_korea
+  - push_to_ecr_dr
+
+cache:
+  key: "no-cache"
+  policy: push
+  paths:
+    - build/
+
+variables:
+  AWS_REGION: "ap-northeast-2"
+  ECR_REGISTRY: ${AWS_ECR}
+  ECR_REPOSITORY: "olive-young-server"
+  ECR_REPOSITORY_DR : "olive-young-server-dr"
+  IMAGE_TAG: "latest"
+  IMAGE_TAG_DR: "latest-dr"
+  KR_DB_URL: "${KR_DB_URL}/OLIVE_YOUNG_PRODUCT"
+  DR_DB_URL: "${DR_DB_URL}/OLIVE_YOUNG_PRODUCT"
+
+before_script:
+  - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+build:
+  stage: build
+  tags:
+    - spring-server
+  script:
+    - ./gradlew build jacocoTestReport
+    - ls -la build/reports/jacoco/test/
+  artifacts:
+    paths:
+      - build/libs/young-0.0.1-SNAPSHOT.jar
+
+sonarqube-check:
+  stage: sonarqube-check
+  image: gradle:jre11-slim
+  tags:
+    - spring-server
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script: ./gradlew sonar
+  allow_failure: true
+  only:
+    - main
+
+dockerize_korea:
+  stage: dockerize_korea
+  tags:
+    - spring-server
+  script:
+    - docker build --build-arg DB_URL=$KR_DB_URL -t $ECR_REPOSITORY:$IMAGE_TAG .  # 한국용 Docker 이미지 빌드
+    - docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+dockerize_dr:
+  stage: dockerize_dr
+  tags:
+    - spring-server
+  script:
+    - docker build --build-arg DB_URL=$DR_DB_URL -t $ECR_REPOSITORY_DR:$IMAGE_TAG_DR .  # DR용 Docker 이미지 빌드
+    - docker tag $ECR_REPOSITORY_DR:$IMAGE_TAG_DR $ECR_REGISTRY/$ECR_REPOSITORY_DR:$IMAGE_TAG_DR
+
+push_to_ecr_korea:
+  stage: push_to_ecr_korea
+  tags:
+    - spring-server
+  script:
+    - docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG  # ECR로 한국용 이미지 푸시
+
+push_to_ecr_dr:
+  stage: push_to_ecr_dr
+  tags:
+    - spring-server
+  script:
+    - docker push $ECR_REGISTRY/$ECR_REPOSITORY_DR:$IMAGE_TAG_DR  # ECR로 DR용 이미지 푸시
+
+#    - argocd app sync spring-server --project test-project --auth-token $ARGOCD_AUTH_TOKEN --insecure

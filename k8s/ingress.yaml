@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: olive-young-server-ingress
+  namespace: spring-server
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/subnets: subnet-0872c7c059e879dbd,subnet-01d782e0b96583a9f #public 서브넷 지정
+    alb.ingress.kubernetes.io/target-type: ip
+    external-dns.alpha.kubernetes.io/hostname: "server.olive0-druwa.com"
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:381492005553:certificate/e0a44424-a65f-4022-b722-7da63b789a1a  # TLS 인증서 추가
+spec:
+  ingressClassName: alb
+  rules:
+    - host: "server.olive0-druwa.com"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: olive-young-server-service
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - "server.olive0-druwa.com"
